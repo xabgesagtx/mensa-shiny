@@ -54,10 +54,11 @@ server <- function(input, output) {
     meanDishes <- aggregate(n ~ weekday, allDatesOpenMerged(), mean)
     meanDishes$weekdayAsFactor <- factor(meanDishes$weekday, levels = weekdaysVector)
     ggplot(meanDishes, aes(x = weekdayAsFactor)) + 
-      geom_bar(aes(weight = n)) + 
+      geom_bar(aes(weight = n), fill = "steelblue") + 
       ggtitle("Durschnittliche Anzahl an Gerichten pro Wochentag") + 
       ylab("Durchschnittliche Anzahl") +
-      xlab("Wochentag")
+      xlab("Wochentag") +
+      theme_minimal()
   })
   output$percentage <- renderPlot({
     daysOpenPerWeekday <- allDatesOpen() %>% group_by(weekday) %>% summarise(count = n())
@@ -66,11 +67,12 @@ server <- function(input, output) {
       mutate(likelihood = ifelse(is.na(countNoLabel), 1, 1 - (countNoLabel / count)))
     likelihoodLabel$weekdayAsFactor <- factor(likelihoodLabel$weekday, levels = weekdaysVector)
     ggplot(likelihoodLabel, aes(x = weekdayAsFactor)) + 
-      geom_bar(aes(weight = likelihood)) +
+      geom_bar(aes(weight = likelihood), fill = "steelblue") +
       ggtitle("Prozentualer Anteil der Tage mit Gerichten des Labels") + 
       scale_y_continuous(labels=percent) +
       ylab("Anteil an Tagen mit Label") +
-      xlab("Wochentag")
+      xlab("Wochentag") +
+      theme_minimal()
   })
 }
 options(shiny.port = 8080)
