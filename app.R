@@ -24,7 +24,7 @@ labels <- sort(unique(dishesPerLabel$label))
 # Mensas for Input field
 mensas_list <- split(mensas$id,mensas$name)
 ui <- fluidPage(title = "Mensa Hamburg Statistiken",
-                  headerPanel("Mensa Hamburg Statistiken (Stand: 11.12.2017"),
+                  headerPanel("Mensa Hamburg Statistiken (Stand: 11.12.2017)"),
                   sidebarPanel(
                     selectInput(inputId = "mensaId", label = "Mensa", choices = mensas_list),
                     selectInput(inputId = "label", label = "Label", choices = labels)
