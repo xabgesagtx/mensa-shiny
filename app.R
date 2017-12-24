@@ -1,12 +1,12 @@
 library(tidyr)
 library(dplyr)
-library(ggplot2)
 library(scales)
 library(shiny)
 library(leaflet)
+library(ggvis)
 
 # Constant values
-weekdaysVector <- c("Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+weekdaysVector <- c("Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag")
 
 mensas <- read.csv("data/mensas.csv", header = TRUE, stringsAsFactors = FALSE)
 dishes <- read.csv("data/dishes.csv", header = TRUE, stringsAsFactors = FALSE)
@@ -25,7 +25,7 @@ labels <- sort(unique(dishesPerLabel$label))
 # Mensas for Input field
 mensas_list <- split(mensas$id,mensas$name)
 ui <- fluidPage(title = "Mensa Hamburg Statistiken",
-                headerPanel("Mensa Hamburg Statistiken (Stand: 11.12.2017)"),
+                headerPanel("Mensa Hamburg Statistiken (Stand: 24.12.2017)"),
                   tabsetPanel(type="tabs",
                    tabPanel("Graphs",
                       sidebarPanel(
@@ -33,8 +33,12 @@ ui <- fluidPage(title = "Mensa Hamburg Statistiken",
                         selectInput(inputId = "label", label = "Label", choices = labels)
                       ),
                       mainPanel(
-                        plotOutput("average"),
-                        plotOutput("percentage")
+                        h2("Durschnittliche Anzahl an Gerichten pro Wochentag"),
+                        ggvisOutput("average"),
+                        h2("Median an Gerichten pro Wochentag"),
+                        ggvisOutput("median"),
+                        h2("Prozentualer Anteil der Tage mit Gerichten des Labels"),
+                        ggvisOutput("percentage")
                       )          
                     ),
                     tabPanel("Map",
@@ -58,37 +62,45 @@ server <- function(input, output) {
     result$weekday <- weekdays(result$date)
     result
   })
-  output$average <- renderPlot({
+  averagePlot <- reactive({
     meanDishes <- aggregate(n ~ weekday, allDatesOpenMerged(), mean)
     meanDishes$weekdayAsFactor <- factor(meanDishes$weekday, levels = weekdaysVector)
-    ggplot(meanDishes, aes(x = weekdayAsFactor)) + 
-      geom_bar(aes(weight = n), fill = "steelblue") + 
-      ggtitle("Durschnittliche Anzahl an Gerichten pro Wochentag") + 
-      ylab("Durchschnittliche Anzahl") +
-      xlab("Wochentag") +
-      theme_minimal()
+    meanDishes %>%
+      ggvis(x = ~weekdayAsFactor, y = ~n, fill := "steelblue") %>%
+      layer_bars() %>%
+      add_axis("x", title = "Wochentag") %>%
+      add_axis("y", title = "Durchschnittliche Anzahl")
   })
-  output$percentage <- renderPlot({
+  averagePlot %>% bind_shiny("average")
+  medianPlot <- reactive({
+    medianDishes <- aggregate(n ~ weekday, allDatesOpenMerged(), median)
+    medianDishes$weekdayAsFactor <- factor(medianDishes$weekday, levels = weekdaysVector)
+    medianDishes %>%
+      ggvis(x = ~weekdayAsFactor, y = ~n, fill := "steelblue") %>%
+      layer_bars() %>%
+      add_axis("x", title = "Wochentag") %>%
+      add_axis("y", title = "Median")
+  })
+  medianPlot %>% bind_shiny("median")
+  percentagePlot <- reactive({
     daysOpenPerWeekday <- allDatesOpen() %>% group_by(weekday) %>% summarise(count = n())
     noLabelDishesPerWeekday <- allDatesOpenMerged() %>% group_by(weekday) %>% filter(n == 0) %>% summarize(countNoLabel = n())
     likelihoodLabel <- merge(daysOpenPerWeekday, noLabelDishesPerWeekday, by.x = "weekday", by.y = "weekday", all = T) %>%
       mutate(likelihood = ifelse(is.na(countNoLabel), 1, 1 - (countNoLabel / count)))
     likelihoodLabel$weekdayAsFactor <- factor(likelihoodLabel$weekday, levels = weekdaysVector)
-    ggplot(likelihoodLabel, aes(x = weekdayAsFactor)) + 
-      geom_bar(aes(weight = likelihood), fill = "steelblue") +
-      ggtitle("Prozentualer Anteil der Tage mit Gerichten des Labels") + 
-      scale_y_continuous(labels=percent) +
-      ylab("Anteil an Tagen mit Label") +
-      xlab("Wochentag") +
-      theme_minimal()
+    likelihoodLabel %>%
+      ggvis(x = ~weekdayAsFactor, y = ~likelihood, fill := "steelblue") %>%
+      layer_bars() %>%
+      add_axis("y", title = "Anteil an Tagen mit Label", format = "%") %>%
+      add_axis("x", title = "Wochentag")
   })
-  points <- 
+  percentagePlot %>% bind_shiny("percentage")
   output$mensaMap <- renderLeaflet({
     leaflet(data = mensas) %>%
       addProviderTiles(providers$OpenStreetMap,
                        options = providerTileOptions(noWrap = TRUE)
       ) %>%
-      addMarkers(lat = ~latitude, lng = ~longitude, label = ~name, popup = ~paste(name, br(), address))
+      addMarkers(lat = ~latitude, lng = ~longitude, label = ~name, popup = ~paste(strong(name), br(), address, br(), zipcode, city))
   })
 }
 options(shiny.port = 8080)
