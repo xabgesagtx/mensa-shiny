@@ -33,6 +33,8 @@ ui <- fluidPage(title = "Mensa Hamburg Statistiken",
                         selectInput(inputId = "label", label = "Label", choices = labels)
                       ),
                       mainPanel(
+                        h2("Anzahl der Gerichte pro Wochentag"),
+                        ggvisOutput("boxplot"),
                         h2("Durschnittliche Anzahl an Gerichten pro Wochentag"),
                         ggvisOutput("average"),
                         h2("Median an Gerichten pro Wochentag"),
@@ -62,6 +64,15 @@ server <- function(input, output) {
     result$weekday <- weekdays(result$date)
     result
   })
+  mensaBoxPlot <- reactive({
+    allDatesOpenMerged() %>%
+      mutate(weekdayAsFactor = factor(weekday, levels = weekdaysVector)) %>%
+      ggvis(x = ~weekdayAsFactor, y = ~n, fill := "steelblue") %>%
+      layer_boxplots() %>%
+      add_axis("x", title = "Wochentag") %>%
+      add_axis("y", title = "Anzahl")
+  })
+  mensaBoxPlot %>% bind_shiny("boxplot")
   averagePlot <- reactive({
     meanDishes <- aggregate(n ~ weekday, allDatesOpenMerged(), mean)
     meanDishes$weekdayAsFactor <- factor(meanDishes$weekday, levels = weekdaysVector)
