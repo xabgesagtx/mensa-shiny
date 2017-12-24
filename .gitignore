@@ -38,3 +38,4 @@ data/
 
 # Ignore rsconnect
 rsconnect/
+.Rproj.user

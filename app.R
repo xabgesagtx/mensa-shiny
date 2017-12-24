@@ -3,6 +3,7 @@ library(dplyr)
 library(ggplot2)
 library(scales)
 library(shiny)
+library(leaflet)
 
 # Constant values
 weekdaysVector <- c("Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
@@ -24,16 +25,23 @@ labels <- sort(unique(dishesPerLabel$label))
 # Mensas for Input field
 mensas_list <- split(mensas$id,mensas$name)
 ui <- fluidPage(title = "Mensa Hamburg Statistiken",
-                  headerPanel("Mensa Hamburg Statistiken (Stand: 11.12.2017)"),
-                  sidebarPanel(
-                    selectInput(inputId = "mensaId", label = "Mensa", choices = mensas_list),
-                    selectInput(inputId = "label", label = "Label", choices = labels)
-                  ),
-                  mainPanel(
-                    plotOutput("average"),
-                    plotOutput("percentage")
-                  )
-                )
+                headerPanel("Mensa Hamburg Statistiken (Stand: 11.12.2017)"),
+                  tabsetPanel(type="tabs",
+                   tabPanel("Graphs",
+                      sidebarPanel(
+                        selectInput(inputId = "mensaId", label = "Mensa", choices = mensas_list),
+                        selectInput(inputId = "label", label = "Label", choices = labels)
+                      ),
+                      mainPanel(
+                        plotOutput("average"),
+                        plotOutput("percentage")
+                      )          
+                    ),
+                    tabPanel("Map",
+                      leafletOutput("mensaMap")
+                    )
+                )  
+            )
   
 server <- function(input, output) {
   numberOfDishesForMensaAndLabel <- reactive({dishesPerLabel %>%
@@ -73,6 +81,14 @@ server <- function(input, output) {
       ylab("Anteil an Tagen mit Label") +
       xlab("Wochentag") +
       theme_minimal()
+  })
+  points <- 
+  output$mensaMap <- renderLeaflet({
+    leaflet(data = mensas) %>%
+      addProviderTiles(providers$OpenStreetMap,
+                       options = providerTileOptions(noWrap = TRUE)
+      ) %>%
+      addMarkers(lat = ~latitude, lng = ~longitude, label = ~name, popup = ~paste(name, br(), address))
   })
 }
 options(shiny.port = 8080)
